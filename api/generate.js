@@ -17,7 +17,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'llama3-8b-8192',
+        model: 'llama-3.1-8b-instant',
         max_tokens: 1500,
         messages: [
           {
@@ -36,9 +36,9 @@ Return ONLY this JSON structure:
 }
 
 Rules:
-- Generate exactly ${count || 15} flashcards as Q&A pairs
-- Generate at least 8 key concepts with clear definitions
-- Generate at least 5 revision cards with 3-5 bullet points each
+- Generate exactly ${count || 10} flashcards as Q&A pairs
+- Generate at least 5 key concepts with clear definitions
+- Generate at least 3 revision cards with 3-5 bullet points each
 - Make questions specific and educational
 - Keep answers concise (1-3 sentences)
 - Do not repeat questions`
