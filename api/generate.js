@@ -10,22 +10,25 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'qwen/qwen3-32b',
         max_tokens: 4000,
-        messages: [{
-          role: 'user',
-          content: `You are an expert educator. Generate comprehensive study material for the topic: "${topic}".
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert educator. Always respond with valid JSON only — no markdown, no backticks, no explanation.'
+          },
+          {
+            role: 'user',
+            content: `Generate comprehensive study material for the topic: "${topic}".
 
-Return ONLY a valid JSON object with NO markdown, no backticks, no explanation. Just raw JSON:
-
+Return ONLY this JSON structure:
 {
   "flashcards": [{"question": "...", "answer": "..."}],
   "keyConcepts": [{"term": "...", "definition": "..."}],
@@ -38,9 +41,9 @@ Rules:
 - Generate at least 5 revision cards with 3-5 bullet points each
 - Make questions specific and educational
 - Keep answers concise (1-3 sentences)
-- Cover different aspects of the topic
 - Do not repeat questions`
-        }]
+          }
+        ]
       })
     });
 
@@ -50,7 +53,7 @@ Rules:
       return res.status(500).json({ error: data.error.message });
     }
 
-    const rawText = data.content.map(b => b.text || '').join('');
+    const rawText = data.choices[0].message.content;
     const clean = rawText.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
 
