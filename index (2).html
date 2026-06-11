@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlashAI — AI Flashcard Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c26;
+    --border: rgba(255,255,255,0.08);
+    --accent: #7c6dfa;
+    --accent2: #a78bfa;
+    --accent-glow: rgba(124,109,250,0.15);
+    --text: #f0f0f8;
+    --muted: #8888a8;
+    --success: #34d399;
+    --warn: #fbbf24;
+    --card-flip: 0.6s;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+  .bg-orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  .orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.18; }
+  .orb1 { width: 500px; height: 500px; background: #7c6dfa; top: -100px; right: -100px; }
+  .orb2 { width: 400px; height: 400px; background: #06b6d4; bottom: -100px; left: -100px; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  nav { padding: 20px 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -0.5px; background: linear-gradient(135deg, var(--accent2), #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .nav-badge { font-size: 11px; padding: 4px 10px; background: var(--accent-glow); color: var(--accent2); border: 1px solid rgba(124,109,250,0.3); border-radius: 20px; }
+
+  .hero { text-align: center; margin-bottom: 48px; }
+  .hero-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--accent2); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 16px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .hero h1 { font-family: 'Syne', sans-serif; font-size: clamp(32px, 6vw, 52px); font-weight: 800; line-height: 1.1; letter-spacing: -1px; margin-bottom: 16px; }
+  .hero h1 span { color: var(--accent2); }
+  .hero p { font-size: 16px; color: var(--muted); max-width: 500px; margin: 0 auto; line-height: 1.7; }
+
+  .input-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px; margin-bottom: 16px; }
+  .input-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; display: block; }
+  .topic-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 15px; padding: 14px 16px; resize: none; min-height: 100px; outline: none; transition: border-color .2s; line-height: 1.6; }
+  .topic-input::placeholder { color: var(--muted); opacity: .6; }
+  .topic-input:focus { border-color: rgba(124,109,250,0.5); }
+
+  .input-row { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  .count-select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; padding: 10px 14px; border-radius: 10px; outline: none; cursor: pointer; }
+  .generate-btn { flex: 1; min-width: 180px; background: var(--accent); color: #fff; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; border: none; border-radius: 12px; padding: 12px 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background .2s, transform .1s, box-shadow .2s; }
+  .generate-btn:hover:not(:disabled) { background: #6b5ce7; box-shadow: 0 0 24px var(--accent-glow); transform: translateY(-1px); }
+  .generate-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  .quick-topics { margin-bottom: 40px; }
+  .quick-label { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font-size: 12px; padding: 6px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; color: var(--muted); cursor: pointer; transition: all .2s; }
+  .chip:hover { border-color: var(--accent); color: var(--accent2); background: var(--accent-glow); }
+
+  .status-bar { display: none; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  .status-bar.show { display: flex; }
+  .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent2); animation: spin .7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .tabs-wrapper { display: none; }
+  .tabs-wrapper.show { display: block; }
+  .tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 4px; margin-bottom: 20px; width: fit-content; }
+  .tab-btn { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; padding: 8px 18px; border-radius: 10px; border: none; background: transparent; color: var(--muted); cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 6px; }
+  .tab-btn.active { background: var(--accent); color: #fff; }
+  .tab-count { font-size: 10px; padding: 1px 6px; border-radius: 10px; background: rgba(255,255,255,0.15); }
+
+  .export-bar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .export-btn { font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all .2s; }
+  .export-btn:hover { border-color: var(--accent); color: var(--accent2); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; text-align: center; }
+  .stat-num { font-size: 22px; font-weight: 700; color: var(--accent2); font-family: 'Syne', sans-serif; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .fc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .fc-card { height: 180px; cursor: pointer; perspective: 1000px; }
+  .fc-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform var(--card-flip) cubic-bezier(.4,0,.2,1); }
+  .fc-card.flipped .fc-inner { transform: rotateY(180deg); }
+  .fc-front, .fc-back { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--border); }
+  .fc-front { background: var(--surface); }
+  .fc-back { background: linear-gradient(135deg, #1a1430, #0f1a2a); border-color: rgba(124,109,250,0.3); transform: rotateY(180deg); }
+  .fc-label { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
+  .fc-front .fc-label { color: var(--accent2); }
+  .fc-back .fc-label { color: var(--success); }
+  .fc-text { font-size: 14px; line-height: 1.55; color: var(--text); flex: 1; display: flex; align-items: center; padding: 8px 0; }
+  .fc-hint { font-size: 11px; color: var(--muted); }
+  .fc-num { font-size: 10px; color: var(--muted); }
+
+  .kc-list { display: flex; flex-direction: column; gap: 10px; }
+  .kc-item { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; display: flex; gap: 16px; align-items: flex-start; }
+  .kc-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); flex-shrink: 0; margin-top: 6px; }
+  .kc-term { font-size: 14px; font-weight: 600; color: var(--accent2); margin-bottom: 4px; }
+  .kc-def { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  .rv-list { display: flex; flex-direction: column; gap: 12px; }
+  .rv-item { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 14px; padding: 18px 20px; }
+  .rv-head { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .rv-head::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); flex-shrink: 0; }
+  .rv-points { display: flex; flex-direction: column; gap: 6px; }
+  .rv-point { font-size: 13px; color: var(--muted); line-height: 1.6; display: flex; gap: 10px; align-items: flex-start; }
+  .rv-point::before { content: '→'; color: var(--accent2); font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 18px; font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 8px; opacity: 0; transform: translateY(8px); transition: all .3s; z-index: 100; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+
+  footer { text-align: center; padding: 40px 0 24px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); margin-top: 60px; }
+
+  @media (max-width: 600px) {
+    .fc-grid { grid-template-columns: 1fr; }
+    nav { margin-bottom: 28px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-orbs">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+</div>
+
+<div class="container">
+  <nav>
+    <div class="logo">FlashAI</div>
+    <div class="nav-badge">✦ Powered by Claude AI</div>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-eyebrow"><div class="dot"></div> AI Study Tool</div>
+    <h1>Turn any topic into<br><span>smart flashcards</span></h1>
+    <p>Type a topic or paste lesson content — get instant flashcards, key concepts, and revision notes.</p>
+  </div>
+
+  <div class="input-card">
+    <label class="input-label">Topic or lesson content</label>
+    <textarea class="topic-input" id="topicInput" rows="4"
+      placeholder="e.g. Photosynthesis, The French Revolution, Newton's Laws of Motion, Python lists and loops..."></textarea>
+    <div class="input-row">
+      <select class="count-select" id="cardCount">
+        <option value="10">10 flashcards</option>
+        <option value="15" selected>15 flashcards</option>
+        <option value="20">20 flashcards</option>
+        <option value="25">25 flashcards</option>
+      </select>
+      <button class="generate-btn" id="generateBtn" onclick="generate()">
+        ⚡ Generate flashcards
+      </button>
+    </div>
+  </div>
+
+  <div class="quick-topics">
+    <div class="quick-label">Quick topics — click to try</div>
+    <div class="chips">
+      <div class="chip" onclick="setTopic('Photosynthesis')">🌱 Photosynthesis</div>
+      <div class="chip" onclick="setTopic('World War II')">⚔️ World War II</div>
+      <div class="chip" onclick="setTopic('Python programming basics')">🐍 Python basics</div>
+      <div class="chip" onclick="setTopic('Human digestive system')">🫀 Digestive system</div>
+      <div class="chip" onclick="setTopic('Newton\\'s three laws of motion')">🔭 Newton\\'s laws</div>
+      <div class="chip" onclick="setTopic('The French Revolution')">🏰 French Revolution</div>
+      <div class="chip" onclick="setTopic('Machine learning fundamentals')">🤖 Machine learning</div>
+      <div class="chip" onclick="setTopic('Cell biology and organelles')">🔬 Cell biology</div>
+    </div>
+  </div>
+
+  <div class="status-bar" id="statusBar">
+    <div class="spinner"></div>
+    <span id="statusText">Generating your flashcards...</span>
+  </div>
+
+  <div class="tabs-wrapper" id="resultsSection">
+    <div class="stats-bar">
+      <div class="stat"><div class="stat-num" id="statFC">0</div><div class="stat-label">Flashcards</div></div>
+      <div class="stat"><div class="stat-num" id="statKC">0</div><div class="stat-label">Key concepts</div></div>
+      <div class="stat"><div class="stat-num" id="statRV">0</div><div class="stat-label">Revision cards</div></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('flashcards', this)">🃏 Flashcards <span class="tab-count" id="fcCount">0</span></button>
+      <button class="tab-btn" onclick="switchTab('concepts', this)">📖 Key Concepts <span class="tab-count" id="kcCount">0</span></button>
+      <button class="tab-btn" onclick="switchTab('revision', this)">📝 Revision <span class="tab-count" id="rvCount">0</span></button>
+    </div>
+
+    <div class="export-bar">
+      <button class="export-btn" onclick="downloadJSON()">⬇ Download JSON</button>
+      <button class="export-btn" onclick="copyAll()">📋 Copy all text</button>
+      <button class="export-btn" onclick="generate()">🔄 Regenerate</button>
+    </div>
+
+    <div class="tab-panel active" id="panel-flashcards"><div class="fc-grid" id="fcGrid"></div></div>
+    <div class="tab-panel" id="panel-concepts"><div class="kc-list" id="kcList"></div></div>
+    <div class="tab-panel" id="panel-revision"><div class="rv-list" id="rvList"></div></div>
+  </div>
+</div>
+
+<footer>
+  <div class="container">Built with Claude AI (Anthropic) · FlashAI — AI Flashcard Generator</div>
+</footer>
+
+<div class="toast" id="toast"><div class="toast-dot"></div><span id="toastMsg">Done!</span></div>
+
+<script>
+  let generatedData = null;
+  let currentTopic = '';
+
+  function setTopic(t) {
+    document.getElementById('topicInput').value = t;
+    document.getElementById('topicInput').focus();
+  }
+
+  function switchTab(panel, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + panel).classList.add('active');
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    document.getElementById('toastMsg').textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  async function generate() {
+    const topic = document.getElementById('topicInput').value.trim();
+    if (!topic) { showToast('Please enter a topic first!'); return; }
+
+    currentTopic = topic;
+    const count = document.getElementById('cardCount').value;
+    const btn = document.getElementById('generateBtn');
+    const status = document.getElementById('statusBar');
+
+    btn.disabled = true;
+    status.classList.add('show');
+    document.getElementById('statusText').textContent = `Generating ${count} flashcards for "${topic}"...`;
+    document.getElementById('resultsSection').classList.remove('show');
+
+    try {
+      // Calls our Vercel serverless function — API key is safe on the server!
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic, count })
+      });
+
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      generatedData = data;
+      renderAll(data);
+      document.getElementById('resultsSection').classList.add('show');
+      status.classList.remove('show');
+      showToast(`✓ ${data.flashcards.length} flashcards ready!`);
+
+    } catch (err) {
+      document.getElementById('statusText').textContent = '✕ Error: ' + err.message;
+      setTimeout(() => status.classList.remove('show'), 3000);
+    }
+
+    btn.disabled = false;
+  }
+
+  function renderAll(data) {
+    document.getElementById('statFC').textContent = data.flashcards.length;
+    document.getElementById('statKC').textContent = data.keyConcepts.length;
+    document.getElementById('statRV').textContent = data.revisionCards.length;
+    document.getElementById('fcCount').textContent = data.flashcards.length;
+    document.getElementById('kcCount').textContent = data.keyConcepts.length;
+    document.getElementById('rvCount').textContent = data.revisionCards.length;
+
+    const grid = document.getElementById('fcGrid');
+    grid.innerHTML = '';
+    data.flashcards.forEach((fc, i) => {
+      const card = document.createElement('div');
+      card.className = 'fc-card';
+      card.innerHTML = `<div class="fc-inner">
+        <div class="fc-front">
+          <div style="display:flex;justify-content:space-between"><span class="fc-label">Question</span><span class="fc-num">${i+1}/${data.flashcards.length}</span></div>
+          <div class="fc-text">${fc.question}</div>
+          <div class="fc-hint">↕ Tap to flip</div>
+        </div>
+        <div class="fc-back">
+          <span class="fc-label">Answer</span>
+          <div class="fc-text">${fc.answer}</div>
+          <div class="fc-hint">Tap to go back</div>
+        </div>
+      </div>`;
+      card.onclick = () => card.classList.toggle('flipped');
+      grid.appendChild(card);
+    });
+
+    const kcList = document.getElementById('kcList');
+    kcList.innerHTML = '';
+    data.keyConcepts.forEach(kc => {
+      const el = document.createElement('div');
+      el.className = 'kc-item';
+      el.innerHTML = `<div class="kc-dot"></div><div><div class="kc-term">${kc.term}</div><div class="kc-def">${kc.definition}</div></div>`;
+      kcList.appendChild(el);
+    });
+
+    const rvList = document.getElementById('rvList');
+    rvList.innerHTML = '';
+    data.revisionCards.forEach(rv => {
+      const el = document.createElement('div');
+      el.className = 'rv-item';
+      el.innerHTML = `<div class="rv-head">${rv.heading}</div><div class="rv-points">${rv.points.map(p=>`<div class="rv-point">${p}</div>`).join('')}</div>`;
+      rvList.appendChild(el);
+    });
+
+    document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+    document.querySelectorAll('.tab-panel').forEach((p,i) => p.classList.toggle('active', i===0));
+  }
+
+  function downloadJSON() {
+    if (!generatedData) return;
+    const blob = new Blob([JSON.stringify({topic: currentTopic, ...generatedData}, null, 2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `flashcards-${currentTopic.replace(/\s+/g,'-').toLowerCase()}.json`; a.click();
+    showToast('JSON downloaded!');
+  }
+
+  function copyAll() {
+    if (!generatedData) return;
+    let out = `FLASHCARDS — ${currentTopic.toUpperCase()}\n${'='.repeat(40)}\n\n`;
+    generatedData.flashcards.forEach((f,i) => out += `Q${i+1}: ${f.question}\nA: ${f.answer}\n\n`);
+    out += `KEY CONCEPTS\n${'='.repeat(40)}\n\n`;
+    generatedData.keyConcepts.forEach(k => out += `${k.term}: ${k.definition}\n\n`);
+    out += `REVISION NOTES\n${'='.repeat(40)}\n\n`;
+    generatedData.revisionCards.forEach(r => out += `${r.heading}\n${r.points.map(p=>'  → '+p).join('\n')}\n\n`);
+    navigator.clipboard.writeText(out).then(() => showToast('All content copied!'));
+  }
+
+  document.getElementById('topicInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.ctrlKey) generate();
+  });
+</script>
+</body>
+</html>
