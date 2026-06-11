@@ -54,7 +54,7 @@ Rules:
     }
 
     const rawText = data.choices[0].message.content;
-    const clean = rawText.replace(/```json|```/g, '').trim();
+    const clean = rawText.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
 
     return res.status(200).json(parsed);
