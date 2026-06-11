@@ -17,7 +17,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'llama3-8b-8192',
         max_tokens: 1500,
         messages: [
           {
@@ -54,7 +54,9 @@ Rules:
     }
 
     const rawText = data.choices[0].message.content;
-    const clean = rawText.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/```json|```/g, '').trim();
+    const jsonStart = rawText.indexOf('{');
+    const jsonEnd = rawText.lastIndexOf('}');
+    const clean = rawText.slice(jsonStart, jsonEnd + 1);
     const parsed = JSON.parse(clean);
 
     return res.status(200).json(parsed);
